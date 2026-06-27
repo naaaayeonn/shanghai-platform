@@ -38,11 +38,11 @@ let bgX = 0;
 /* ───── 사진 이미지 로드 ───── */
 // 같은 폴더에 photo.jpg 를 넣어두면 자동으로 동그라미 안에 표시됨
 const playerImg = new Image();
-playerImg.src = 'photo.jpg';
+playerImg.src = 'ny.jpg';
 
 /* ───── 장애물 데이터 (r = 반지름, 원형으로 굴러옴) ───── */
 const OBSTACLE_TYPES = [
-  { emoji: '👊', label: '친구와의\n싸움', color: '#E24B4A', r: 28 },
+  { emoji: '👊', label: '세인소미와\n손절', color: '#E24B4A', r: 28 },
   { emoji: '💸', label: '돈 없음',        color: '#BA7517', r: 26 },
   { emoji: '🌪', label: '번아웃',         color: '#8B5CF6', r: 30 },
 ];
