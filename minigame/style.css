@@ -15,7 +15,7 @@ canvas {
   touch-action: none;
 }
 
-/* ───── UI 오버레이 ───── */
+/* ───── UI 오버레이 ─────- */
 #ui {
   position: absolute;
   top: 0;
