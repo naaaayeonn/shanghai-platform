@@ -10,6 +10,7 @@ const screenEl = document.getElementById('screen');
 
 /* ───── 캔버스 리사이즈 ───── */
 let W, H, GROUND;
+let nextFoodX = 0;
 const DPR = window.devicePixelRatio || 1;
 
 function resize() {
@@ -202,7 +203,7 @@ function update(dt) {
   if (foodTimer <= 0) {
     const f = FOOD_TYPES[Math.floor(Math.random() * FOOD_TYPES.length)];
     foods.push({
-      x: W + 40,
+      x: W + 40 + Math.random() * 400,
       y: GROUND - (H * 0.14 + Math.random() * H * 0.1),
       w: 36,
       h: 36,
