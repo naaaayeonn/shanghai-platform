@@ -10,7 +10,6 @@ const screenEl = document.getElementById('screen');
 
 /* ───── 캔버스 리사이즈 ───── */
 let W, H, GROUND;
-let nextFoodX = 0;
 const DPR = window.devicePixelRatio || 1;
 
 function resize() {
@@ -67,6 +66,7 @@ function initGame() {
     onGround: true,
     frame: 0,
     animT: 0,
+     jumpCount: 0,
   };
   obstacles = [];
   foods = [];
@@ -112,10 +112,13 @@ function startGame() {
 
 /* ───── 점프 ───── */
 function jump() {
-  if (state === 'play' && player.onGround) {
-    player.vy = -560;
-    player.onGround = false;
-  }
+    if (state !== 'play') return;
+
+    if (player.jumpCount < 2) {
+        player.vy = -560;
+        player.onGround = false;
+        player.jumpCount++;
+    }
 }
 
 /* ───── 보너스 메시지 표시 ───── */
@@ -172,7 +175,8 @@ function update(dt) {
     player.y = GROUND;
     player.vy = 0;
     player.onGround = true;
-  }
+    player.jumpCount = 0;
+}
 
   // 달리기 애니메이션 프레임
   player.animT += dt;
