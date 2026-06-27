@@ -35,11 +35,16 @@ let spawnTimer = 0, foodTimer = 0;
 let speed = 0, elapsed = 0;
 let bgX = 0;
 
-/* ───── 장애물 데이터 ───── */
+/* ───── 사진 이미지 로드 ───── */
+// 같은 폴더에 photo.jpg 를 넣어두면 자동으로 동그라미 안에 표시됨
+const playerImg = new Image();
+playerImg.src = 'photo.jpg';
+
+/* ───── 장애물 데이터 (r = 반지름, 원형으로 굴러옴) ───── */
 const OBSTACLE_TYPES = [
-  { label: '👊 친구와의 싸움', color: '#E24B4A', w: 48, h: 56 },
-  { label: '💸 돈 없음',       color: '#BA7517', w: 52, h: 52 },
-  { label: '🌪 번아웃',        color: '#8B5CF6', w: 44, h: 60 },
+  { emoji: '👊', label: '친구와의\n싸움', color: '#E24B4A', r: 28 },
+  { emoji: '💸', label: '돈 없음',        color: '#BA7517', r: 26 },
+  { emoji: '🌪', label: '번아웃',         color: '#8B5CF6', r: 30 },
 ];
 
 /* ───── 음식(보너스) 데이터 ───── */
@@ -181,14 +186,16 @@ function update(dt) {
     const o = OBSTACLE_TYPES[Math.floor(Math.random() * OBSTACLE_TYPES.length)];
     obstacles.push({
       x: W + 60,
-      y: GROUND + player.h - o.h,
-      w: o.w,
-      h: o.h,
+      cx: W + 60,                  // 원 중심 x (x = cx, 편의용)
+      cy: GROUND - o.r,            // 원 중심 y = 바닥에서 반지름만큼 위
+      r: o.r,
+      emoji: o.emoji,
       label: o.label,
       color: o.color,
+      angle: 0,                    // 굴러오는 회전 각도
     });
-    // 시간이 지날수록 스폰 간격 짧아짐
-    spawnTimer = 1.4 + Math.random() * 1.1 - Math.min(elapsed * 0.012, 0.6);
+    // 시작: 0.9~1.4초 간격 → 시간 지날수록 최소 0.4초까지 줄어듦
+    spawnTimer = 0.9 + Math.random() * 0.5 - Math.min(elapsed * 0.015, 0.5);
   }
 
   // ── 음식 스폰 ──
@@ -208,32 +215,42 @@ function update(dt) {
   }
 
   // ── 이동 ──
-  for (const o of obstacles) o.x -= speed * dt;
+  for (const o of obstacles) {
+    const dx = speed * dt;
+    o.cx -= dx;
+    o.x = o.cx;                        // x는 cx 동기화 (필터용)
+    o.angle -= dx / o.r;               // 굴러오는 회전: 거리/반지름 = 라디안
+  }
   for (const f of foods)     { f.x -= speed * dt; f.spin += dt * 3; }
-  obstacles = obstacles.filter(o => o.x > -100);
+  obstacles = obstacles.filter(o => o.cx > -100);
   foods     = foods.filter(f => f.x > -100);
   for (const c of clouds)    { c.x -= c.s * speed * 0.07 * dt; if (c.x < -80) c.x = W + 60; }
   for (const b of buildings) { b.x -= speed * 0.06 * dt; if (b.x < -b.w) b.x = W + b.w; }
   bgX -= speed * 0.03 * dt;
 
   // ── 충돌 감지 ──
-  const px = player.x,       py = player.y - player.h + 6;
-  const pw = player.w - 8,   ph = player.h - 10;
+  // 플레이어를 원으로 근사: 몸통 중심 + 반지름
+  const plCx = player.x + player.w / 2;
+  const plCy = player.y - player.h * 0.5;  // 몸통 중심
+  const plR  = player.h * 0.3;             // 히트 반지름 (넉넉하게 작게)
 
-  // 장애물 충돌
+  // 장애물: 원-원 거리 충돌
   for (const o of obstacles) {
-    if (px + pw > o.x + 6 && px < o.x + o.w - 6 &&
-        py + ph > o.y + 6 && py < o.y + o.h - 6) {
+    const dx = plCx - o.cx;
+    const dy = plCy - o.cy;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < plR + o.r - 4) {   // -4는 약간의 관용치
       endGame();
       return;
     }
   }
 
-  // 음식 수집
+  // 음식 수집 (AABB로 충분)
   for (let i = foods.length - 1; i >= 0; i--) {
     const f = foods[i];
-    if (px + pw > f.x + 4 && px < f.x + f.w - 4 &&
-        py + ph > f.y + 4 && py < f.y + f.h - 4) {
+    const fdx = plCx - (f.x + f.w / 2);
+    const fdy = plCy - (f.y + f.h / 2);
+    if (Math.sqrt(fdx * fdx + fdy * fdy) < plR + f.w / 2) {
       score += f.bonus;
       showMsg(f.label);
       foods.splice(i, 1);
@@ -280,8 +297,9 @@ function draw() {
   // ── 장애물 ──
   for (const o of obstacles) drawObstacle(o);
 
-  // ── 플레이어(나연) ──
+  // ── 플레이어(나연) ── player.y = 발 바닥
   drawNayeon(player.x, player.y - player.h, player.w, player.h, player.frame);
+
 }
 
 /* ───── 배경 그리기 ───── */
@@ -378,117 +396,143 @@ function drawClouds() {
   }
 }
 
-/* ───── 나연 캐릭터 ───── */
+/* ───── 플레이어 그리기 (동그란 사진) ───── */
 function drawNayeon(x, y, w, h, frame) {
-  ctx.save();
-  ctx.translate(x + w / 2, y);
+  const cx = x + w / 2;
+  const cy = y + h * 0.5;   // 원 중심 (몸통 중심)
+  const r  = h * 0.3;       // 원 반지름
 
-  const legOff = player.onGround ? Math.sin(frame * Math.PI / 2) * 8 : 0;
-  const armOff = player.onGround ? Math.sin(frame * Math.PI / 2 + 1) * 6 : 0;
+  ctx.save();
+
+  // 달리기 bounce: 지면에서 위아래로 살짝 튐
+  const bounce = player.onGround ? Math.sin(player.animT * 14) * 2.5 : 0;
 
   // 그림자
-  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
   ctx.beginPath();
-  ctx.ellipse(0, h + 2, w * 0.45, 5, 0, 0, Math.PI * 2);
+  ctx.ellipse(cx, player.y + 3, r * 0.8, 5, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // 다리
+  // 다리 (원 아래에서 뻗어나옴)
+  const legOff = player.onGround ? Math.sin(player.frame * Math.PI / 2) * 7 : 0;
   ctx.strokeStyle = '#a78bfa';
   ctx.lineWidth = 7;
   ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(-5, h * 0.65); ctx.lineTo(-7 + legOff, h); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo( 5, h * 0.65); ctx.lineTo( 7 - legOff, h); ctx.stroke();
+  // 왼발
+  ctx.beginPath();
+  ctx.moveTo(cx - 8, cy + r - bounce + 4);
+  ctx.lineTo(cx - 10 + legOff, player.y);
+  ctx.stroke();
+  // 오른발
+  ctx.beginPath();
+  ctx.moveTo(cx + 8, cy + r - bounce + 4);
+  ctx.lineTo(cx + 10 - legOff, player.y);
+  ctx.stroke();
 
   // 신발
   ctx.fillStyle = '#7c3aed';
-  ctx.beginPath(); ctx.ellipse(-7 + legOff, h, 10, 5,  0.2, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.ellipse( 7 - legOff, h, 10, 5, -0.2, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(cx - 10 + legOff, player.y, 10, 5,  0.2, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(cx + 10 - legOff, player.y, 10, 5, -0.2, 0, Math.PI * 2); ctx.fill();
 
-  // 몸통 (후드티)
-  ctx.fillStyle = '#c4b5fd';
-  roundRect(-w * 0.3, h * 0.38, w * 0.6, h * 0.32, 6);
-  ctx.fill();
-
-  // 주머니 디테일
-  ctx.fillStyle = 'rgba(255,255,255,0.15)';
-  roundRect(-9, h * 0.52, 18, 10, 3);
-  ctx.fill();
-
-  // 팔
+  // 팔 (원 옆에서 뻗어나옴)
+  const armOff = player.onGround ? Math.sin(player.frame * Math.PI / 2 + 1) * 5 : 0;
   ctx.strokeStyle = '#c4b5fd';
   ctx.lineWidth = 6;
-  ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(-w * 0.28, h * 0.42); ctx.lineTo(-w * 0.38 - armOff, h * 0.62); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo( w * 0.28, h * 0.42); ctx.lineTo( w * 0.38 + armOff, h * 0.62); ctx.stroke();
-
-  // 목
-  ctx.fillStyle = '#fde8d8';
-  ctx.fillRect(-5, h * 0.28, 10, h * 0.14);
-
-  // 얼굴
-  ctx.fillStyle = '#fde8d8';
   ctx.beginPath();
-  ctx.ellipse(0, h * 0.2, w * 0.32, h * 0.22, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // 머리카락
-  ctx.fillStyle = '#2d1a00';
-  ctx.beginPath(); ctx.ellipse(0,       h * 0.11, w * 0.32, h * 0.14,  0,    Math.PI, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(-w*0.28, h * 0.22, 8, 12,  0.3, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.ellipse( w*0.28, h * 0.22, 8, 12, -0.3, 0, Math.PI * 2); ctx.fill();
-
-  // 눈
-  ctx.fillStyle = '#1a1a1a';
-  ctx.beginPath(); ctx.arc(-7, h * 0.19, 3, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc( 7, h * 0.19, 3, 0, Math.PI * 2); ctx.fill();
-
-  // 눈 하이라이트
-  ctx.fillStyle = '#fff';
-  ctx.beginPath(); ctx.arc(-6, h * 0.18, 1, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc( 8, h * 0.18, 1, 0, Math.PI * 2); ctx.fill();
-
-  // 미소
-  ctx.strokeStyle = '#c0665a';
-  ctx.lineWidth = 1.5;
+  ctx.moveTo(cx - r + 4, cy - bounce);
+  ctx.lineTo(cx - r - 10, cy + 10 + armOff);
+  ctx.stroke();
   ctx.beginPath();
-  ctx.arc(0, h * 0.23, 5, 0.1, Math.PI - 0.1);
+  ctx.moveTo(cx + r - 4, cy - bounce);
+  ctx.lineTo(cx + r + 10, cy + 10 - armOff);
   ctx.stroke();
 
+  // 원형 클립 영역
+  ctx.beginPath();
+  ctx.arc(cx, cy - bounce, r, 0, Math.PI * 2);
+  ctx.clip();
+
+  // 사진이 로드됐으면 사진, 아니면 기본 얼굴
+  if (playerImg.complete && playerImg.naturalWidth > 0) {
+    ctx.drawImage(playerImg, cx - r, cy - r - bounce, r * 2, r * 2);
+  } else {
+    // photo.jpg 없을 때 기본 얼굴
+    ctx.fillStyle = '#fde8d8';
+    ctx.fillRect(cx - r, cy - r - bounce, r * 2, r * 2);
+    ctx.fillStyle = '#2d1a00';
+    ctx.beginPath();
+    ctx.arc(cx, cy - r * 0.3 - bounce, r * 0.9, Math.PI, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#1a1a1a';
+    ctx.beginPath(); ctx.arc(cx - r * 0.3, cy - bounce, r * 0.12, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx + r * 0.3, cy - bounce, r * 0.12, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#c0665a';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(cx, cy + r * 0.15 - bounce, r * 0.2, 0.1, Math.PI - 0.1);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+
+  // 원 테두리 (클립 바깥에서 그려야 해서 restore 후)
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy - bounce, r, 0, Math.PI * 2);
+  ctx.strokeStyle = '#FFD700';
+  ctx.lineWidth = 3;
+  ctx.stroke();
   ctx.restore();
 }
 
-/* ───── 장애물 그리기 ───── */
+/* ───── 장애물 그리기 (원형, 굴러옴) ───── */
 function drawObstacle(o) {
   ctx.save();
-  ctx.translate(o.x + o.w / 2, o.y + o.h / 2);
+  ctx.translate(o.cx, o.cy);
+  ctx.rotate(o.angle);   // 원 중심 기준 회전 → 굴러오는 느낌
 
-  const pulse = Math.sin(Date.now() * 0.005) * 2;
-
+  // 원 본체
+  ctx.beginPath();
+  ctx.arc(0, 0, o.r, 0, Math.PI * 2);
   ctx.fillStyle = o.color;
   ctx.shadowColor = o.color;
-  ctx.shadowBlur = 12 + pulse;
-  roundRect(-o.w / 2, -o.h / 2 + pulse / 2, o.w, o.h - pulse, 10);
+  ctx.shadowBlur = 16;
   ctx.fill();
   ctx.shadowBlur = 0;
 
-  // 아이콘 배경
-  ctx.fillStyle = 'rgba(0,0,0,0.2)';
-  roundRect(-o.w / 2 + 4, -o.h / 2 + 4, o.w - 8, o.w - 8, 6);
-  ctx.fill();
+  // 굴러가는 느낌을 주는 선 (2개)
+  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(-o.r, 0);
+  ctx.lineTo(o.r, 0);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(0, -o.r);
+  ctx.lineTo(0, o.r);
+  ctx.stroke();
 
-  // 이모지
-  const emoji = o.label.split(' ')[0];
-  ctx.font = `${o.w * 0.5}px sans-serif`;
+  // 원 테두리
+  ctx.beginPath();
+  ctx.arc(0, 0, o.r, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // 이모지 (회전 상관없이 항상 정방향으로 보이게 역회전)
+  ctx.rotate(-o.angle);
+  ctx.font = `${o.r}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(emoji, 0, -o.h * 0.17);
+  ctx.fillText(o.emoji, 0, -o.r * 0.1);
 
-  // 라벨 텍스트
-  ctx.font = 'bold 9px sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.9)';
-  const words = o.label.replace(emoji + ' ', '').split(' ');
-  ctx.fillText(words.slice(0, 2).join(' '), 0,  o.h * 0.28);
-  if (words.length > 2) ctx.fillText(words.slice(2).join(' '), 0, o.h * 0.42);
+  // 라벨 (원 아래쪽)
+  ctx.font = `bold ${Math.max(9, o.r * 0.32)}px sans-serif`;
+  ctx.fillStyle = 'rgba(255,255,255,0.95)';
+  const lines = o.label.split('\n');
+  lines.forEach((line, i) => {
+    ctx.fillText(line, 0, o.r * 0.45 + i * (o.r * 0.38));
+  });
 
   ctx.restore();
 }
