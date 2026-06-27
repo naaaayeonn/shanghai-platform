@@ -1,1 +1,39 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#1a1a2e" />
+  <title>나연의 상하이 여행 🏃</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
 
+  <!-- 게임 캔버스 -->
+  <canvas id="c"></canvas>
+
+  <!-- UI 오버레이 -->
+  <div id="ui">
+
+    <!-- 점수판 -->
+    <div id="score-box">⏱ <span id="sc">0.0</span>s</div>
+
+    <!-- 보너스 메시지 (음식 먹었을 때) -->
+    <div id="msg"></div>
+
+    <!-- 시작 / 게임오버 화면 -->
+    <div id="screen">
+      <h1>🏃 나연의 상하이 여행</h1>
+      <p>탭하면 뛰어올라요!<br>장애물을 피해 오래 버티세요</p>
+      <p class="sub">
+        🥟 딤섬 +3s &nbsp;·&nbsp; 🍲 훠궈 +5s &nbsp;·&nbsp; 🧋 밀크티 +2s<br>
+        장애물: 👊 세인소미와 손절 &nbsp;·&nbsp; 💸 돈 없음 &nbsp;·&nbsp; 🌪 번아웃
+      </p>
+      <button id="btn" onclick="startGame()">여행 시작!</button>
+    </div>
+
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
