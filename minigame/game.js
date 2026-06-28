@@ -404,83 +404,33 @@ function drawClouds() {
 /* ───── 플레이어 그리기 (동그란 사진) ───── */
 function drawNayeon(x, y, w, h, frame) {
   const cx = x + w / 2;
-  const cy = y + h * 0.5;   // 원 중심 (몸통 중심)
-  const r  = h * 0.3;       // 원 반지름
-
-  ctx.save();
-
-  // 달리기 bounce: 지면에서 위아래로 살짝 튐
+  const cy = y + h * 0.5;
+  const r  = h * 0.3;
   const bounce = player.onGround ? Math.sin(player.animT * 14) * 2.5 : 0;
 
   // 그림자
+  ctx.save();
   ctx.fillStyle = 'rgba(0,0,0,0.3)';
   ctx.beginPath();
   ctx.ellipse(cx, player.y + 3, r * 0.8, 5, 0, 0, Math.PI * 2);
   ctx.fill();
+  ctx.restore();
 
-  // 다리 (원 아래에서 뻗어나옴)
-  const legOff = player.onGround ? Math.sin(player.frame * Math.PI / 2) * 7 : 0;
-  ctx.strokeStyle = '#a78bfa';
-  ctx.lineWidth = 7;
-  ctx.lineCap = 'round';
-  // 왼발
-  ctx.beginPath();
-  ctx.moveTo(cx - 8, cy + r - bounce + 4);
-  ctx.lineTo(cx - 10 + legOff, player.y);
-  ctx.stroke();
-  // 오른발
-  ctx.beginPath();
-  ctx.moveTo(cx + 8, cy + r - bounce + 4);
-  ctx.lineTo(cx + 10 - legOff, player.y);
-  ctx.stroke();
-
-  // 신발
-  ctx.fillStyle = '#7c3aed';
-  ctx.beginPath(); ctx.ellipse(cx - 10 + legOff, player.y, 10, 5,  0.2, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(cx + 10 - legOff, player.y, 10, 5, -0.2, 0, Math.PI * 2); ctx.fill();
-
-  // 팔 (원 옆에서 뻗어나옴)
-  const armOff = player.onGround ? Math.sin(player.frame * Math.PI / 2 + 1) * 5 : 0;
-  ctx.strokeStyle = '#c4b5fd';
-  ctx.lineWidth = 6;
-  ctx.beginPath();
-  ctx.moveTo(cx - r + 4, cy - bounce);
-  ctx.lineTo(cx - r - 10, cy + 10 + armOff);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(cx + r - 4, cy - bounce);
-  ctx.lineTo(cx + r + 10, cy + 10 - armOff);
-  ctx.stroke();
-
-  // 원형 클립 영역
+  // 원형 클립 + 사진
+  ctx.save();
   ctx.beginPath();
   ctx.arc(cx, cy - bounce, r, 0, Math.PI * 2);
   ctx.clip();
 
-  // 사진이 로드됐으면 사진, 아니면 기본 얼굴
   if (playerImg.complete && playerImg.naturalWidth > 0) {
     ctx.drawImage(playerImg, cx - r, cy - r - bounce, r * 2, r * 2);
   } else {
-    // photo.jpg 없을 때 기본 얼굴
     ctx.fillStyle = '#fde8d8';
     ctx.fillRect(cx - r, cy - r - bounce, r * 2, r * 2);
-    ctx.fillStyle = '#2d1a00';
-    ctx.beginPath();
-    ctx.arc(cx, cy - r * 0.3 - bounce, r * 0.9, Math.PI, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#1a1a1a';
-    ctx.beginPath(); ctx.arc(cx - r * 0.3, cy - bounce, r * 0.12, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(cx + r * 0.3, cy - bounce, r * 0.12, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = '#c0665a';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.arc(cx, cy + r * 0.15 - bounce, r * 0.2, 0.1, Math.PI - 0.1);
-    ctx.stroke();
   }
-
   ctx.restore();
 
-  // 원 테두리 (클립 바깥에서 그려야 해서 restore 후)
+  // 금색 테두리
   ctx.save();
   ctx.beginPath();
   ctx.arc(cx, cy - bounce, r, 0, Math.PI * 2);
@@ -492,31 +442,24 @@ function drawNayeon(x, y, w, h, frame) {
 
 /* ───── 장애물 그리기 (원형, 굴러옴) ───── */
 function drawObstacle(o) {
+  // 원형 + 사진 클립
   ctx.save();
-  ctx.translate(o.cx, o.cy);
-
-  // 원 테두리 글로우
   ctx.beginPath();
-  ctx.arc(0, 0, o.r, 0, Math.PI * 2);
+  ctx.arc(o.cx, o.cy, o.r, 0, Math.PI * 2);
   ctx.fillStyle = o.color;
   ctx.shadowColor = o.color;
   ctx.shadowBlur = 16;
   ctx.fill();
   ctx.shadowBlur = 0;
-
-  // 사진 클립
-  ctx.beginPath();
-  ctx.arc(0, 0, o.r, 0, Math.PI * 2);
   ctx.clip();
 
   const img = obsImgs[o.imgIdx];
   if (img.complete && img.naturalWidth > 0) {
-    ctx.drawImage(img, -o.r, -o.r, o.r * 2, o.r * 2);
+    ctx.drawImage(img, o.cx - o.r, o.cy - o.r, o.r * 2, o.r * 2);
   }
-
   ctx.restore();
 
-  // 테두리 (clip 밖에서)
+  // 테두리
   ctx.save();
   ctx.beginPath();
   ctx.arc(o.cx, o.cy, o.r, 0, Math.PI * 2);
