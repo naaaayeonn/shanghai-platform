@@ -26,7 +26,7 @@ window.addEventListener('resize', resize);
 resize();
 
 /* ───── 게임 상태 변수 ───── */
-let state = 'idle';   // 'idle' | 'play' | 'dead'
+let state = 'idle';
 let score = 0;
 let lastTime = 0;
 let frameId;
@@ -35,24 +35,27 @@ let spawnTimer = 0, foodTimer = 0;
 let speed = 0, elapsed = 0;
 let bgX = 0;
 
-/* ───── 사진 이미지 로드 ───── */
-// 같은 폴더에 photo.jpg 를 넣어두면 자동으로 동그라미 안에 표시됨
+/* ───── 이미지 로드 ───── */
 const playerImg = new Image();
 playerImg.src = 'ny.jpg';
 
-/* ───── 장애물 데이터 (r = 반지름, 원형으로 굴러옴) ───── */
+const obsImgs = [new Image(), new Image(), new Image()];
+obsImgs[0].src = 'obs1.jpg';
+obsImgs[1].src = 'obs2.jpg';
+obsImgs[2].src = 'obs3.jpg';
+
+/* ───── 장애물 데이터 ───── */
 const OBSTACLE_TYPES = [
-  { emoji: '👊', label: '세인소미와\n손절', color: '#E24B4A', r: 28 },
-  { emoji: '💸', label: '돈 없음',        color: '#BA7517', r: 26 },
-  { emoji: '🌪', label: '번아웃',         color: '#8B5CF6', r: 30 },
+  { label: '세인소미와\n손절', color: '#E24B4A', r: 28, imgIdx: 0 },
+  { label: '돈 없음',          color: '#BA7517', r: 26, imgIdx: 1 },
+  { label: '번아웃',           color: '#8B5CF6', r: 30, imgIdx: 2 },
 ];
 
 /* ───── 음식(보너스) 데이터 ───── */
-// bonus: 추가되는 초(seconds)
 const FOOD_TYPES = [
-  { label: '+3s 🥟 딤섬',   color: '#F59E0B', bonus: 3 },
-  { label: '+5s 🍲 훠궈',   color: '#EF4444', bonus: 5 },
-  { label: '+2s 🧋 밀크티', color: '#A78BFA', bonus: 2 },
+  { label: '+3s 딤섬',   emoji: '🥟', bonus: 3 },
+  { label: '+5s 훠궈',   emoji: '🍲', bonus: 5 },
+  { label: '+2s 밀크티', emoji: '🧋', bonus: 2 },
 ];
 
 /* ───── 게임 초기화 ───── */
@@ -61,12 +64,12 @@ function initGame() {
     x: W * 0.18,
     y: GROUND,
     vy: 0,
-    w: 34,
-    h: 52,
+    w: 60,
+    h: 60,
     onGround: true,
     frame: 0,
     animT: 0,
-     jumpCount: 0,
+    jumpCount: 0,
   };
   obstacles = [];
   foods = [];
@@ -79,7 +82,6 @@ function initGame() {
   score = 0;
   bgX = 0;
 
-  // 구름 초기 배치
   for (let i = 0; i < 6; i++) {
     clouds.push({
       x: Math.random() * W,
@@ -88,8 +90,6 @@ function initGame() {
       s: 0.3 + Math.random() * 0.4,
     });
   }
-
-  // 빌딩 초기 배치
   for (let i = 0; i < 5; i++) {
     buildings.push({
       x: i * (W / 4.5),
@@ -110,18 +110,17 @@ function startGame() {
   loop(lastTime);
 }
 
-/* ───── 점프 ───── */
+/* ───── 점프 (더블점프 가능) ───── */
 function jump() {
-    if (state !== 'play') return;
-
-    if (player.jumpCount < 2) {
-        player.vy = -560;
-        player.onGround = false;
-        player.jumpCount++;
-    }
+  if (state !== 'play') return;
+  if (player.jumpCount < 2) {
+    player.vy = -560;
+    player.onGround = false;
+    player.jumpCount++;
+  }
 }
 
-/* ───── 보너스 메시지 표시 ───── */
+/* ───── 보너스 메시지 ───── */
 function showMsg(text) {
   msgEl.textContent = text;
   msgEl.style.opacity = '1';
@@ -147,11 +146,7 @@ function loop(ts) {
   frameId = requestAnimationFrame(loop);
   const dt = Math.min((ts - lastTime) / 1000, 0.05);
   lastTime = ts;
-
-  if (state !== 'play') {
-    drawBg();
-    return;
-  }
+  if (state !== 'play') { drawBg(); return; }
   update(dt);
   draw();
 }
@@ -160,97 +155,75 @@ function loop(ts) {
 function update(dt) {
   elapsed += dt;
   score += dt;
-
-  // 시간이 지날수록 속도 증가
   speed = 220 + elapsed * 8;
-
-  // 장애물 스폰 타이머
   spawnTimer -= dt;
   foodTimer -= dt;
 
-  // ── 플레이어 물리 ──
-  player.vy += 1600 * dt;  // 중력
+  // 플레이어 물리
+  player.vy += 1600 * dt;
   player.y += player.vy * dt;
   if (player.y >= GROUND) {
     player.y = GROUND;
     player.vy = 0;
     player.onGround = true;
     player.jumpCount = 0;
-}
-
-  // 달리기 애니메이션 프레임
-  player.animT += dt;
-  if (player.onGround) {
-    player.frame = Math.floor(player.animT * 8) % 4;
-  } else {
-    player.frame = 4; // 점프 자세
   }
+  player.animT += dt;
+  player.frame = player.onGround ? Math.floor(player.animT * 8) % 4 : 4;
 
-  // ── 장애물 스폰 ──
+  // 장애물 스폰
   if (spawnTimer <= 0) {
     const o = OBSTACLE_TYPES[Math.floor(Math.random() * OBSTACLE_TYPES.length)];
     obstacles.push({
-      x: W + 60,
-      cx: W + 60,                  // 원 중심 x (x = cx, 편의용)
-      cy: GROUND - o.r,            // 원 중심 y = 바닥에서 반지름만큼 위
+      cx: W + 60,
+      cy: GROUND - o.r,
       r: o.r,
-      emoji: o.emoji,
       label: o.label,
       color: o.color,
-      angle: 0,                    // 굴러오는 회전 각도
+      imgIdx: o.imgIdx,
     });
-    // 시작: 0.9~1.4초 간격 → 시간 지날수록 최소 0.4초까지 줄어듦
     spawnTimer = 0.9 + Math.random() * 0.5 - Math.min(elapsed * 0.015, 0.5);
   }
 
-  // ── 음식 스폰 ──
+  // 음식 스폰
   if (foodTimer <= 0) {
     const f = FOOD_TYPES[Math.floor(Math.random() * FOOD_TYPES.length)];
     foods.push({
-      x: W + 40 + Math.random() * 400,
+      x: W + 40,
       y: GROUND - (H * 0.14 + Math.random() * H * 0.1),
-      w: 36,
-      h: 36,
+      w: 40,
+      h: 40,
       label: f.label,
+      emoji: f.emoji,
       bonus: f.bonus,
-      color: f.color,
       spin: 0,
     });
     foodTimer = 4 + Math.random() * 4;
   }
 
-  // ── 이동 ──
-  for (const o of obstacles) {
-    const dx = speed * dt;
-    o.cx -= dx;
-    o.x = o.cx;                        // x는 cx 동기화 (필터용)
-    o.angle -= dx / o.r;               // 굴러오는 회전: 거리/반지름 = 라디안
-  }
-  for (const f of foods)     { f.x -= speed * dt; f.spin += dt * 3; }
+  // 이동
+  for (const o of obstacles) o.cx -= speed * dt;
+  for (const f of foods) { f.x -= speed * dt; f.spin += dt * 3; }
   obstacles = obstacles.filter(o => o.cx > -100);
   foods     = foods.filter(f => f.x > -100);
   for (const c of clouds)    { c.x -= c.s * speed * 0.07 * dt; if (c.x < -80) c.x = W + 60; }
   for (const b of buildings) { b.x -= speed * 0.06 * dt; if (b.x < -b.w) b.x = W + b.w; }
   bgX -= speed * 0.03 * dt;
 
-  // ── 충돌 감지 ──
-  // 플레이어를 원으로 근사: 몸통 중심 + 반지름
-  const plCx = player.x + player.w / 2;
-  const plCy = player.y - player.h * 0.5;  // 몸통 중심
-  const plR  = player.h * 0.3;             // 히트 반지름 (넉넉하게 작게)
+  // 충돌 감지 - 플레이어 원 중심
+  const plR  = player.w / 2;
+  const plCx = player.x + plR;
+  const plCy = player.y - plR;   // 발에서 반지름만큼 위 = 원 중심
 
-  // 장애물: 원-원 거리 충돌
   for (const o of obstacles) {
     const dx = plCx - o.cx;
     const dy = plCy - o.cy;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    if (dist < plR + o.r - 4) {   // -4는 약간의 관용치
+    if (Math.sqrt(dx * dx + dy * dy) < plR + o.r - 6) {
       endGame();
       return;
     }
   }
 
-  // 음식 수집 (AABB로 충분)
   for (let i = foods.length - 1; i >= 0; i--) {
     const f = foods[i];
     const fdx = plCx - (f.x + f.w / 2);
@@ -273,13 +246,13 @@ function draw() {
   ctx.clearRect(0, 0, W, H);
   drawBg();
 
-  // ── 바닥 ──
+  // 바닥
   ctx.fillStyle = '#3a2a6e';
   ctx.fillRect(0, GROUND, W, H - GROUND);
   ctx.fillStyle = '#5a3a8e';
   ctx.fillRect(0, GROUND, W, 6);
 
-  // 바닥 타일 패턴
+  // 바닥 타일
   ctx.strokeStyle = 'rgba(255,255,255,0.06)';
   ctx.lineWidth = 1;
   for (let i = 0; i < W; i += 60) {
@@ -290,33 +263,30 @@ function draw() {
     ctx.stroke();
   }
 
-  // ── 음식 아이템 ──
+  // 음식
   for (const f of foods) {
     ctx.save();
     ctx.translate(f.x + f.w / 2, f.y + f.h / 2);
-    ctx.rotate(Math.sin(f.spin) * 0.18);
-    drawFood(0, 0, f.w, f.color);
+    ctx.rotate(Math.sin(f.spin) * 0.25);
+    drawFood(0, 0, f.w, f.emoji);
     ctx.restore();
   }
 
-  // ── 장애물 ──
+  // 장애물
   for (const o of obstacles) drawObstacle(o);
 
-  // ── 플레이어(나연) ── player.y = 발 바닥
-  drawNayeon(player.x, player.y - player.h, player.w, player.h, player.frame);
-
+  // 플레이어
+  drawPlayer();
 }
 
-/* ───── 배경 그리기 ───── */
+/* ───── 배경 ───── */
 function drawBg() {
-  // 하늘 그라데이션
   const sky = ctx.createLinearGradient(0, 0, 0, GROUND);
   sky.addColorStop(0, '#0f0c29');
   sky.addColorStop(0.5, '#1a1a4e');
   sky.addColorStop(1, '#2d1b69');
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, W, H);
-
   drawBuildings();
   drawOrientalPearl(W * 0.8, GROUND - H * 0.46, H * 0.46);
   drawClouds();
@@ -327,8 +297,6 @@ function drawBuildings() {
   for (const b of buildings) {
     ctx.fillStyle = b.color;
     ctx.fillRect(b.x, GROUND - b.h, b.w, b.h);
-
-    // 창문
     ctx.fillStyle = 'rgba(255,240,100,0.25)';
     for (let wy = GROUND - b.h + 10; wy < GROUND - 10; wy += 20) {
       for (let wx = b.x + 8; wx < b.x + b.w - 10; wx += 16) {
@@ -338,54 +306,26 @@ function drawBuildings() {
   }
 }
 
-/* ───── 동방명주 타워 (심플 일러스트) ───── */
+/* ───── 동방명주 ───── */
 function drawOrientalPearl(x, y, maxH) {
   const s = maxH / 240;
   ctx.save();
   ctx.translate(x, y);
-
-  // 큰 구체
   ctx.fillStyle = 'rgba(230,80,120,0.85)';
   ctx.strokeStyle = 'rgba(255,100,150,0.7)';
   ctx.lineWidth = 2 * s;
-  ctx.beginPath();
-  ctx.arc(0, maxH * 0.35, 30 * s, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-
-  // 작은 구체
+  ctx.beginPath(); ctx.arc(0, maxH * 0.35, 30 * s, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
   ctx.fillStyle = 'rgba(200,50,100,0.85)';
-  ctx.beginPath();
-  ctx.arc(0, maxH * 0.6, 18 * s, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-
-  // 다리(기둥)
+  ctx.beginPath(); ctx.arc(0, maxH * 0.6, 18 * s, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
   ctx.strokeStyle = 'rgba(200,100,150,0.6)';
   ctx.lineWidth = 3 * s;
-  ctx.beginPath();
-  ctx.moveTo(-22 * s, maxH * 0.78);
-  ctx.lineTo(-8 * s, maxH * 0.55);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(22 * s, maxH * 0.78);
-  ctx.lineTo(8 * s, maxH * 0.55);
-  ctx.stroke();
-
-  // 첨탑
+  ctx.beginPath(); ctx.moveTo(-22 * s, maxH * 0.78); ctx.lineTo(-8 * s, maxH * 0.55); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(22 * s, maxH * 0.78);  ctx.lineTo(8 * s,  maxH * 0.55); ctx.stroke();
   ctx.strokeStyle = 'rgba(255,150,180,0.8)';
   ctx.lineWidth = 2 * s;
-  ctx.beginPath();
-  ctx.moveTo(0, maxH * 0.2);
-  ctx.lineTo(0, 0);
-  ctx.stroke();
-
-  // 안테나 끝 점
+  ctx.beginPath(); ctx.moveTo(0, maxH * 0.2); ctx.lineTo(0, 0); ctx.stroke();
   ctx.fillStyle = '#FFD700';
-  ctx.beginPath();
-  ctx.arc(0, 0, 4 * s, 0, Math.PI * 2);
-  ctx.fill();
-
+  ctx.beginPath(); ctx.arc(0, 0, 4 * s, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
 }
 
@@ -401,11 +341,11 @@ function drawClouds() {
   }
 }
 
-/* ───── 플레이어 그리기 (동그란 사진) ───── */
-function drawNayeon(x, y, w, h, frame) {
-  const cx = x + w / 2;
-  const cy = y + h * 0.5;
-  const r  = h * 0.3;
+/* ───── 플레이어 (원형 사진) ───── */
+function drawPlayer() {
+  const r   = player.w / 2;
+  const cx  = player.x + r;
+  const cy  = player.y - r;   // 발에서 반지름만큼 위
   const bounce = player.onGround ? Math.sin(player.animT * 14) * 2.5 : 0;
 
   // 그림자
@@ -421,7 +361,6 @@ function drawNayeon(x, y, w, h, frame) {
   ctx.beginPath();
   ctx.arc(cx, cy - bounce, r, 0, Math.PI * 2);
   ctx.clip();
-
   if (playerImg.complete && playerImg.naturalWidth > 0) {
     ctx.drawImage(playerImg, cx - r, cy - r - bounce, r * 2, r * 2);
   } else {
@@ -440,9 +379,9 @@ function drawNayeon(x, y, w, h, frame) {
   ctx.restore();
 }
 
-/* ───── 장애물 그리기 (원형, 굴러옴) ───── */
+/* ───── 장애물 (원형 사진) ───── */
 function drawObstacle(o) {
-  // 원형 + 사진 클립
+  // 배경 색 + 클립
   ctx.save();
   ctx.beginPath();
   ctx.arc(o.cx, o.cy, o.r, 0, Math.PI * 2);
@@ -454,7 +393,7 @@ function drawObstacle(o) {
   ctx.clip();
 
   const img = obsImgs[o.imgIdx];
-  if (img.complete && img.naturalWidth > 0) {
+  if (img && img.complete && img.naturalWidth > 0) {
     ctx.drawImage(img, o.cx - o.r, o.cy - o.r, o.r * 2, o.r * 2);
   }
   ctx.restore();
@@ -474,47 +413,29 @@ function drawObstacle(o) {
   ctx.fillStyle = 'rgba(255,255,255,0.95)';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
-  const lines = o.label.split('\n');
-  lines.forEach((line, i) => {
+  o.label.split('\n').forEach((line, i) => {
     ctx.fillText(line, o.cx, o.cy + o.r + 4 + i * (o.r * 0.38));
   });
   ctx.restore();
 }
 
-/* ───── 음식 그리기 ───── */
+/* ───── 음식 (이모지만) ───── */
 function drawFood(x, y, size, emoji) {
   ctx.font = `${size * 0.9}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(emoji, x, y);
 }
-/* ───── 헬퍼: 둥근 사각형 ───── */
-function roundRect(x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.arcTo(x + w, y,     x + w, y + r,     r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
-  ctx.lineTo(x + r, y + h);
-  ctx.arcTo(x,     y + h, x,     y + h - r, r);
-  ctx.lineTo(x,     y + r);
-  ctx.arcTo(x,     y,     x + r, y,         r);
-  ctx.closePath();
-}
 
-/* ───── 컨트롤 (키보드 & 터치) ───── */
+/* ───── 컨트롤 ───── */
 document.addEventListener('keydown', e => {
-  if (e.code === 'Space' || e.code === 'ArrowUp') {
-    e.preventDefault();
-    jump();
-  }
+  if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); jump(); }
 });
 canvas.addEventListener('pointerdown', e => {
   e.preventDefault();
   jump();
 }, { passive: false });
 
-/* ───── 최초 배경 렌더 ───── */
+/* ───── 최초 렌더 ───── */
 resize();
 drawBg();
