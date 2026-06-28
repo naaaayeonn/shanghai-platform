@@ -20,16 +20,21 @@
 
     /* ── 북 컨테이너 ── */
     #book{
-      width:100%;height:100%;
-      display:flex;flex-direction:column;
+      width:100%;
+      height:100vh;
+      display:flex;
+      flex-direction:column;
       background:var(--cream);
-      position:relative;overflow:hidden;
+      position:relative;
+      overflow:hidden;
     }
 
     /* ── 페이지 래퍼 ── */
     #pages{
       flex:1;
       display:flex;
+      min-height:0;
+      overflow:hidden;
       transition:transform 0.5s cubic-bezier(.77,0,.175,1);
       will-change:transform;
     }
@@ -38,9 +43,12 @@
     .page{
       min-width:100%;
       height:100%;
+      min-height:0;
       overflow-y:auto;
+      overflow-x:hidden;
       -webkit-overflow-scrolling:touch;
       scroll-behavior:smooth;
+      padding-bottom:100px;
     }
     .page::-webkit-scrollbar{width:4px}
     .page::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
@@ -98,7 +106,7 @@
        페이지 1 : 숙소 + 타임라인
     ════════════════════════════ */
     #p1{background:var(--cream)}
-    .page-inner{padding:28px 20px 40px;max-width:600px;margin:0 auto}
+    .page-inner{padding:28px 20px 140px;max-width:600px;margin:0 auto;}
     .page-label{
       font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;
       color:var(--red);margin-bottom:18px;display:flex;align-items:center;gap:8px;
@@ -234,8 +242,8 @@
       </svg>
 
       <p class="cover-sub">Shanghai Travel Guide</p>
-      <h1>나연의<br>상하이 여행 🇨🇳</h1>
-      <p class="cover-date">2025 · 1 Day Plan</p>
+      <h1>상하이<br>여행 가이드 🇨🇳</h1>
+      <p class="cover-date">2026 · 4 Day Plan</p>
       <p class="cover-hint">아래 화살표로 넘기기 →</p>
     </div>
 
@@ -295,7 +303,7 @@
           </div>
           <div class="tl-row">
             <div class="tl-time">22:30~</div>
-            <div class="tl-right"><p class="tl-place">🌙 숙소에서 마지막밥</p><p class="tl-note">택시로 이동</p></div>
+            <div class="tl-right"><p class="tl-place">🌙 숙소에서 마지막밤</p><p class="tl-note">택시로 이동</p></div>
           </div>
         </div>
       </div>
