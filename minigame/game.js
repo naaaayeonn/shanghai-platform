@@ -494,9 +494,8 @@ function drawNayeon(x, y, w, h, frame) {
 function drawObstacle(o) {
   ctx.save();
   ctx.translate(o.cx, o.cy);
-  ctx.rotate(o.angle);   // 원 중심 기준 회전 → 굴러오는 느낌
 
-  // 원 본체
+  // 원 테두리 글로우
   ctx.beginPath();
   ctx.arc(0, 0, o.r, 0, Math.PI * 2);
   ctx.fillStyle = o.color;
@@ -505,60 +504,47 @@ function drawObstacle(o) {
   ctx.fill();
   ctx.shadowBlur = 0;
 
-  // 굴러가는 느낌을 주는 선 (2개)
-  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(-o.r, 0);
-  ctx.lineTo(o.r, 0);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(0, -o.r);
-  ctx.lineTo(0, o.r);
-  ctx.stroke();
-
-  // 원 테두리
+  // 사진 클립
   ctx.beginPath();
   ctx.arc(0, 0, o.r, 0, Math.PI * 2);
-  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-  ctx.lineWidth = 2;
+  ctx.clip();
+
+  const img = obsImgs[o.imgIdx];
+  if (img.complete && img.naturalWidth > 0) {
+    ctx.drawImage(img, -o.r, -o.r, o.r * 2, o.r * 2);
+  }
+
+  ctx.restore();
+
+  // 테두리 (clip 밖에서)
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(o.cx, o.cy, o.r, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+  ctx.lineWidth = 2.5;
   ctx.stroke();
+  ctx.restore();
 
-  // 이모지 (회전 상관없이 항상 정방향으로 보이게 역회전)
-  ctx.rotate(-o.angle);
-  ctx.font = `${o.r}px sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(o.emoji, 0, -o.r * 0.1);
-
-  // 라벨 (원 아래쪽)
+  // 라벨 (원 아래)
+  ctx.save();
   ctx.font = `bold ${Math.max(9, o.r * 0.32)}px sans-serif`;
   ctx.fillStyle = 'rgba(255,255,255,0.95)';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
   const lines = o.label.split('\n');
   lines.forEach((line, i) => {
-    ctx.fillText(line, 0, o.r * 0.45 + i * (o.r * 0.38));
+    ctx.fillText(line, o.cx, o.cy + o.r + 4 + i * (o.r * 0.38));
   });
-
   ctx.restore();
 }
 
 /* ───── 음식 그리기 ───── */
-function drawFood(x, y, size, color) {
-  ctx.fillStyle = color;
-  ctx.shadowColor = color;
-  ctx.shadowBlur = 16;
-  ctx.beginPath();
-  ctx.arc(x, y, size / 2, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.shadowBlur = 0;
-
-  ctx.fillStyle = 'rgba(255,255,255,0.9)';
-  ctx.font = `${size * 0.55}px sans-serif`;
+function drawFood(x, y, size, emoji) {
+  ctx.font = `${size * 0.9}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('🥟', x, y);
+  ctx.fillText(emoji, x, y);
 }
-
 /* ───── 헬퍼: 둥근 사각형 ───── */
 function roundRect(x, y, w, h, r) {
   ctx.beginPath();
