@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
-  <title>나연의 상하이 여행 🇨🇳</title>
+  <title>상하이 여행 가이드 🇨🇳</title>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     :root{
@@ -30,13 +30,16 @@
     #pages{
       flex:1;
       display:flex;
+      width:100%;
       transition:transform 0.5s cubic-bezier(.77,0,.175,1);
       will-change:transform;
     }
 
     /* ── 개별 페이지 ── */
     .page{
-      min-width:100%;
+      width:100vw;
+      min-width:100vw;
+      flex-shrink:0;
       height:100%;
       overflow-y:auto;
       -webkit-overflow-scrolling:touch;
