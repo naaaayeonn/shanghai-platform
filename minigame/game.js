@@ -189,7 +189,7 @@ function update(dt) {
   if (foodTimer <= 0) {
     const f = FOOD_TYPES[Math.floor(Math.random() * FOOD_TYPES.length)];
     foods.push({
-      x: W + 40,
+      x: W + 40 + Math.random() * 400,
       y: GROUND - (H * 0.14 + Math.random() * H * 0.1),
       w: 40,
       h: 40,
